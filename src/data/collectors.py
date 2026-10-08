@@ -51,16 +51,25 @@ FOOTBALL_DATA_URL = "https://www.football-data.co.uk/mmz4281"
 
 
 # Historical FPL seasons used for model training.
+#
+# 2025-26 is required because:
+#
+#   2025-26 performance -> 2026 transfer market
+#
 HISTORICAL_SEASONS = [
     "2020-21",
     "2021-22",
     "2022-23",
     "2023-24",
     "2024-25",
+    "2025-26",
 ]
 
 
 # Transfermarkt seasons.
+#
+# The 2026 transfer dataset is our latest historical
+# transfer market and will be paired with 2025-26 FPL data.
 TRANSFER_SEASONS = [
     2020,
     2021,
@@ -68,6 +77,7 @@ TRANSFER_SEASONS = [
     2023,
     2024,
     2025,
+    2026,
 ]
 
 
