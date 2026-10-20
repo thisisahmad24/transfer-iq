@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -122,21 +123,28 @@ def build_preprocessor(features):
         if column not in categorical_features
     ]
 
-    return ColumnTransformer(
-        transformers=[
+    categorical_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
             (
-                "categorical",
+                "encoder",
                 OneHotEncoder(
                     handle_unknown="ignore",
                     sparse_output=False,
                 ),
-                categorical_features,
             ),
-            (
-                "numeric",
-                "passthrough",
-                numeric_features,
-            ),
+        ]
+    )
+    numeric_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+        ]
+    )
+
+    return ColumnTransformer(
+        transformers=[
+            ("categorical", categorical_pipeline, categorical_features),
+            ("numeric", numeric_pipeline, numeric_features),
         ],
         remainder="drop",
     )

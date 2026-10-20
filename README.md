@@ -1,110 +1,145 @@
 # TransferIQ — Premier League Transfer Fee Predictor
 
-TransferIQ is a machine-learning project that estimates football transfer fees using historical Premier League player statistics, age, playing time, position, and performance metrics.
+TransferIQ is a portfolio-oriented football analytics application that estimates a player's transfer fee from season-level performance statistics. It combines a Python/scikit-learn machine-learning pipeline with a FastAPI REST backend and a responsive Next.js + TypeScript frontend.
 
-The project includes a data collection pipeline, data cleaning and merging, feature engineering, model training and evaluation, automated tests, and a Streamlit dashboard.
+> **Important:** Transfer fees are difficult to predict from performance statistics alone. TransferIQ is an educational research project, not an official valuation service. Results are estimates, not guarantees.
 
-## Features
+## Product
 
-* Collect current and historical Fantasy Premier League (FPL) statistics.
-* Collect historical transfer records and football match data.
-* Clean and merge player and transfer datasets.
-* Engineer performance, playing-time, age, and disciplinary features.
-* Compare regression models and evaluate predictions on held-out seasons.
-* Predict an estimated transfer fee in euros.
-* Run a web dashboard using Streamlit.
-* Validate key functionality with automated tests.
+- **Valuation Studio:** enter player statistics and request an estimate from the live API.
+- **Separate application layers:** Next.js frontend, FastAPI backend, and a reusable Python model pipeline.
+- **Input validation:** typed request schema and bounds checks at the API boundary.
+- **Model transparency:** explicit limitations around historical data, contract context, injuries, negotiations, and club finances.
+- **Responsive UI:** dashboard layout for desktop and mobile.
 
-## Project Structure
+## Architecture
+
+```text
+Browser (Next.js + TypeScript)
+        |
+        | JSON / REST
+        v
+FastAPI (src/api.py)
+        |
+        v
+Prediction utilities (src/models/predict.py)
+        |
+        v
+Saved scikit-learn pipeline (models/transfer_value_model.pkl)
+
+Training pipeline:
+data/processed/transfer_features.csv
+        -> src/models/train.py
+        -> models/transfer_value_model.pkl
+```
+
+## Project structure
 
 ```text
 transfer-iq/
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── LICENSE
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── external/
-├── notebooks/
-│   ├── 01_data_collection.ipynb
-│   ├── 02_data_cleaning.ipynb
-│   ├── 03_eda.ipynb
-│   └── 04_model_training.ipynb
+├── frontend/
+│   ├── package.json
+│   ├── .env.example
+│   └── src/app/
+│       ├── layout.tsx
+│       ├── page.tsx
+│       └── globals.css
+├── app/
+│   └── streamlit_app.py        # legacy interface; not the primary app
 ├── src/
+│   ├── api.py                  # FastAPI REST API
+│   ├── config.py
 │   ├── data/
 │   │   ├── collectors.py
 │   │   ├── cleaners.py
 │   │   └── merger.py
 │   ├── features/
 │   │   └── engineering.py
-│   ├── models/
-│   │   ├── train.py
-│   │   ├── evaluate.py
-│   │   └── predict.py
-│   └── config.py
+│   └── models/
+│       ├── train.py
+│       ├── evaluate.py
+│       └── predict.py
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── external/
 ├── models/
 │   └── transfer_value_model.pkl
-├── app/
-│   └── streamlit_app.py
+├── notebooks/
 └── tests/
-    ├── test_data.py
-    ├── test_features.py
-    └── test_prediction.py
 ```
 
-## Requirements
+## Run locally
 
-* Python
-* pandas
-* NumPy
-* scikit-learn
-* requests
-* matplotlib
-* Streamlit
-* pytest
+### 1. Python backend
 
-## Installation
-
-Clone the repository and enter the project directory:
-
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd transfer-iq
-```
-
-Create and activate a virtual environment.
-
-Windows PowerShell:
+Use Python 3.11 or newer if available. From the repository root, create and activate a virtual environment:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```powershell
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Data Sources
+Ensure the trained model exists at `models/transfer_value_model.pkl`. If it does not, first prepare the processed dataset and train the model (see [Training the model](#training-the-model)).
 
-TransferIQ collects data from these external sources:
+Start the API:
 
-* **Fantasy Premier League API:** current FPL player statistics.
-* **Fantasy Premier League historical repository:** historical season-level player statistics.
-* **Transfermarkt transfer dataset:** historical transfer records and reported fees.
-* **Football-Data.co.uk:** historical football match results and related match data.
+```powershell
+python -m uvicorn src.api:app --reload --host 127.0.0.1 --port 8000
+```
 
-Collected data is stored under `data/raw/` and processed outputs are stored under `data/processed/`.
+- API health: http://127.0.0.1:8000/health
+- Model metadata: http://127.0.0.1:8000/api/v1/model
+- Interactive API docs: http://127.0.0.1:8000/docs
 
-Data source availability and formats can change. Some transfer records may have missing, inconsistent, or unmatched player information.
+### 2. Next.js frontend
 
-## Running the Pipeline
+Open a second PowerShell terminal at the repository root:
 
-Run these modules from the repository root, in order:
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. The default API URL is `http://localhost:8000`. To use another backend, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` and restart the frontend server.
+
+### 3. Make a prediction
+
+Enter the player's age, position and season-level statistics in Valuation Studio, then choose **Generate valuation**. The browser sends a JSON request to `POST /api/v1/predict`; the API validates the input and returns a fee estimate in euros.
+
+Example API request body:
+
+```json
+{
+  "age": 23,
+  "position": "Midfielder",
+  "element_type": "3",
+  "minutes": 2450,
+  "goals_scored": 9,
+  "assists": 7,
+  "total_points": 164,
+  "goals_conceded": 25,
+  "clean_sheets": 8,
+  "bonus": 14,
+  "bps": 510,
+  "influence": 690,
+  "creativity": 720,
+  "threat": 640,
+  "ict_index": 205,
+  "red_cards": 0,
+  "yellow_cards": 4,
+  "selected_by_percent": 18.5,
+  "now_cost": 75
+}
+```
+
+## Training the model
+
+The model training pipeline expects `data/processed/transfer_features.csv` to exist. If the source datasets are already present, run the pipeline stages from the repository root:
 
 ```powershell
 python -m src.data.collectors
@@ -115,69 +150,52 @@ python -m src.models.train
 python -m src.models.evaluate
 ```
 
-The collector downloads the available source data. The cleaning and merging stages prepare the training dataset, feature engineering creates model inputs, and training saves the selected model to:
+The training module compares regression approaches using a chronological season split and saves the selected pipeline to `models/transfer_value_model.pkl`. Numeric and categorical imputers are fitted as part of preprocessing so missing feature values can be handled consistently at inference time.
 
-`models/transfer_value_model.pkl`
+The repository's raw and processed datasets may not be included because they are large and/or subject to their source licenses. Follow the data-source instructions and confirm that the expected files exist before training.
 
-The evaluation module reports model performance using the evaluation logic implemented in the project.
+## API reference
 
-If a source dataset is unavailable, inspect the collector output and confirm that the required input files exist before rerunning later stages.
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Check API and model-file availability |
+| `GET` | `/api/v1/model` | Return model metadata and limitations |
+| `POST` | `/api/v1/predict` | Validate statistics and estimate a fee |
+| `GET` | `/docs` | Interactive OpenAPI documentation |
 
-## Running the Dashboard
+The backend allows the local frontend origin by default. Set `TRANSFERIQ_CORS_ORIGINS` to a comma-separated list of trusted frontend origins when hosting the API elsewhere.
+
+## Testing
 
 From the repository root:
-
-```powershell
-python -m streamlit run app/streamlit_app.py
-```
-
-Open the local URL shown in the terminal, usually:
-
-`http://localhost:8501`
-
-Enter the player's statistics and click **Estimate transfer fee** to obtain a predicted fee in euros.
-
-The dashboard uses manually entered statistics; it does not automatically retrieve a player's latest statistics by name.
-
-## Model and Evaluation
-
-The training pipeline compares multiple regression approaches using a season-based validation and test split. The selected model is saved as a scikit-learn pipeline.
-
-Recorded evaluation results:
-
-| Metric                         | Validation (2024) |    Test (2025) |
-| ------------------------------ | ----------------: | -------------: |
-| Mean Absolute Error (MAE)      |     €9.31 million | €15.13 million |
-| Root Mean Squared Error (RMSE) |    €12.70 million | €20.50 million |
-
-These results apply to the dataset and evaluation procedure used during training. They do not guarantee equivalent performance on future transfer markets.
-
-## Automated Tests
-
-Run the test suite:
 
 ```powershell
 python -m pytest -v
 ```
 
-The current test suite checks data configuration, feature calculations, invalid inputs, and prediction behavior.
+Frontend production build:
 
-## Limitations
+```powershell
+cd frontend
+npm run build
+```
 
-* Historical transfer fees and player statistics may be incomplete or inconsistent.
-* The merged training dataset contains a limited number of matched player-transfer records.
-* Transfer fees depend on factors not fully represented by FPL statistics, including contract duration, injuries, club finances, negotiations, and market conditions.
-* The available transfer data does not constitute complete coverage of the 2026 transfer market.
-* Predictions are estimates for research and demonstration, not official valuations or guaranteed transfer fees.
+## Data and model limitations
 
-## Future Improvements
+- The current matched transfer dataset is limited compared with the full transfer market.
+- Performance statistics do not include all major valuation drivers such as contract length, injuries, club finances, player demand, and negotiation structure.
+- Historical transfer data may contain missing, inconsistent, or unmatched records.
+- Estimates can be substantially wrong for unusually expensive transfers and should not be treated as a market quote.
+- The app uses manually entered statistics; it does not claim to fetch a player's latest season automatically.
 
-* Improve player identity matching across datasets.
-* Expand the training dataset with additional verified transfer records.
-* Add stronger validation and more comprehensive integration tests.
-* Compare model performance across positions, seasons, and fee ranges.
-* Investigate additional features such as contract duration and injury history.
+## Data sources
+
+- Fantasy Premier League API and historical FPL season datasets for player statistics.
+- Transfermarkt transfer datasets for historical transfer fees.
+- Football-Data.co.uk for supplementary historical football data.
+
+Check the individual source terms before redistributing any data.
 
 ## License
 
-See `LICENSE` for the project's licensing terms.
+See [LICENSE](LICENSE) for the project's licensing terms.
